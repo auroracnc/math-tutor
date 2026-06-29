@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考研数学二 1v1 智能辅导 - DeepSeek</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface2: #273548;
+            --border: #334155;
+            --text: #e2e8f0;
+            --text2: #b0bec5;
+            --text3: #78909c;
+            --accent: #3b82f6;
+            --accent2: #2563eb;
+            --accent-glow: rgba(59,130,246,0.25);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 4px 24px rgba(0,0,0,0.4);
+            --transition: 0.2s ease;
+            --font-sans: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{
+            font-family:var(--font-sans);
+            background:var(--bg);
+            color:var(--text);
+            height:100vh;display:flex;overflow:hidden;
+        }
+        .sidebar{
+            width:380px;min-width:380px;
+            background:var(--surface);
+            border-right:1px solid var(--border);
+            display:flex;flex-direction:column;z-index:10;
+            transition:transform var(--transition);
+        }
+        .sidebar.collapsed{transform:translateX(-380px);min-width:0;width:0;border:none;}
+        .sidebar-header{
+            padding:18px 20px;border-bottom:1px solid var(--border);
+            display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;
+        }
+        .sidebar-header h2{font-size:1.05rem;font-weight:700;display:flex;align-items:center;gap:8px;}
+        .sidebar-stats{
+            display:flex;gap:8px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--border);flex-shrink:0;
+        }
+        .stat-chip{
+            background:var(--surface2);border-radius:20px;padding:6px 14px;
+            font-size:0.78rem;font-weight:500;white-space:nowrap;
+        }
+        .stat-chip.due{background:#fef3c7;color:#92400e;animation:pulse-due 2s infinite;}
+        @keyframes pulse-due{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.4);}50%{box-shadow:0 0 0 10px rgba(245,158,11,0);}}
+        .stat-chip.mastered{background:#d1fae5;color:#065f46;}
+        .sidebar-list{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:6px;}
+        .sidebar-list::-webkit-scrollbar{width:4px;}
+        .sidebar-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
+        .error-card{
+            background:var(--surface2);border-radius:var(--radius-sm);padding:12px 14px;
+            cursor:pointer;border:1px solid transparent;transition:all var(--transition);
+        }
+        .error-card:hover{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+        .error-card .ec-header{
+            display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;
+        }
+        .error-card .ec-id{font-weight:700;font-size:0.8rem;color:var(--accent);}
+        .error-card .ec-topic{
+            font-size:0.7rem;background:var(--accent);color:#fff;padding:2px 8px;border-radius:10px;
+        }
+        .error-card .ec-question{
+            font-size:0.82rem;color:var(--text);line-height:1.4;
+            display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:6px;
+        }
+        .error-card .ec-meta{font-size:0.7rem;color:var(--text3);display:flex;gap:10px;flex-wrap:wrap;}
+        .error-card .ec-stage.stage-new{color:#f59e0b;}
+        .error-card .ec-stage.stage-review{color:#3b82f6;}
+        .error-card .ec-stage.stage-mastered{color:#10b981;}
+        .sidebar-footer{
+            padding:12px 20px;border-top:1px solid var(--border);
+            display:flex;gap:8px;flex-wrap:wrap;
+        }
+        .sidebar-footer button{
+            font-size:0.72rem;padding:6px 12px;border-radius:16px;border:1px solid var(--border);
+            background:var(--surface2);color:var(--text2);cursor:pointer;transition:all var(--transition);white-space:nowrap;
+        }
+        .sidebar-footer button:hover{border-color:var(--accent);color:var(--text);}
+        .sidebar-footer button.danger{border-color:#7f1d1d;color:#fca5a5;}
+        .sidebar-footer button.danger:hover{background:#7f1d1d22;border-color:#ef4444;}
+        .main{flex:1;display:flex;flex-direction:column;min-width:0;}
+        .main-header{
+            padding:14px 20px;border-bottom:1px solid var(--border);
+            display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--surface);
+        }
+        .main-header .logo{
+            font-weight:800;font-size:1.1rem;display:flex;align-items:center;gap:8px;
+        }
+        .main-header .logo .dot{
+            width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent-glow);
+        }
+        .toggle-sidebar-btn{
+            background:var(--surface2);border:1px solid var(--border);color:var(--text);
+            padding:8px 14px;border-radius:20px;cursor:pointer;font-size:0.8rem;font-weight:500;
+        }
+        .api-status{
+            margin-left:auto;font-size:0.75rem;padding:6px 12px;border-radius:16px;font-weight:500;white-space:nowrap;
+        }
+        .api-status.connected{background:#d1fae522;color:#10b981;border:1px solid #10b98144;}
+        .api-status.disconnected{background:#fef3c722;color:#f59e0b;border:1px solid #f59e0b44;}
+        .chat-area{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;background:var(--bg);}
+        .chat-area::-webkit-scrollbar{width:5px;}
+        .chat-area::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
+        .message{max-width:85%;animation:fadeInUp 0.3s ease;line-height:1.65;}
+        @keyframes fadeInUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+        .message.user{
+            align-self:flex-end;background:var(--accent);color:#fff;
+            border-radius:18px 18px 4px 18px;padding:12px 18px;font-size:0.9rem;
+        }
+        .message.assistant{
+            align-self:flex-start;background:var(--surface);border:1px solid var(--border);
+            border-radius:18px 18px 18px 4px;padding:16px 20px;font-size:0.88rem;box-shadow:var(--shadow);
+        }
+        .message.system-msg{
+            align-self:center;background:var(--surface2);border:1px dashed var(--border);
+            border-radius:20px;padding:10px 18px;font-size:0.78rem;color:var(--text3);text-align:center;max-width:90%;
+        }
+        .message .label{font-size:0.7rem;font-weight:700;text-transform:uppercase;margin-bottom:6px;color:var(--text3);}
+        .message.user .label{color:rgba(255,255,255,0.7);}
+        .input-area{
+            padding:14px 20px;border-top:1px solid var(--border);background:var(--surface);
+            display:flex;flex-direction:column;gap:10px;
+        }
+        .quick-btns{display:flex;gap:8px;flex-wrap:wrap;}
+        .quick-btn{
+            padding:7px 14px;border-radius:18px;border:1px solid var(--border);background:var(--surface2);
+            color:var(--text2);cursor:pointer;font-size:0.75rem;font-weight:500;
+            transition:all var(--transition);white-space:nowrap;
+        }
+        .quick-btn:hover{
+            border-color:var(--accent);color:#fff;background:var(--accent2);box-shadow:0 0 0 4px var(--accent-glow);
+        }
+        .quick-btn.primary-action{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600;}
+        .input-row{display:flex;gap:10px;align-items:flex-end;}
+        .input-row textarea{
+            flex:1;resize:none;background:var(--surface2);border:1px solid var(--border);
+            border-radius:var(--radius);padding:12px 16px;color:var(--text);
+            font-family:var(--font-sans);font-size:0.9rem;line-height:1.5;
+            min-height:48px;max-height:140px;outline:none;transition:border-color var(--transition);
+        }
+        .input-row textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+        .send-btn{
+            padding:12px 24px;border-radius:var(--radius);background:var(--accent);color:#fff;
+            border:none;cursor:pointer;font-weight:700;font-size:0.9rem;white-space:nowrap;flex-shrink:0;
+        }
+        .send-btn:hover{background:var(--accent2);box-shadow:0 0 0 6px var(--accent-glow);}
+        .send-btn:disabled{opacity:0.5;cursor:not-allowed;}
+        .typing-indicator{display:flex;gap:4px;padding:8px 0;}
+        .typing-indicator span{
+            width:8px;height:8px;border-radius:50%;background:var(--text3);
+            animation:bounce 1.2s infinite;
+        }
+        .typing-indicator span:nth-child(2){animation-delay:0.2s;}
+        .typing-indicator span:nth-child(3){animation-delay:0.4s;}
+        @keyframes bounce{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-12px);}}
+        .toast{
+            position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:999;
+            padding:12px 24px;border-radius:24px;font-weight:600;font-size:0.85rem;
+            animation:slideDown 0.35s ease;box-shadow:0 8px 32px rgba(0,0,0,0.5);
+        }
+        @keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-40px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+        .toast.success{background:#10b981;color:#fff;}
+        .toast.warning{background:#f59e0b;color:#000;}
+        .toast.error{background:#ef4444;color:#fff;}
+        @media(max-width:768px){
+            .sidebar{
+                position:fixed;top:0;left:0;height:100vh;z-index:50;width:320px;min-width:320px;
+                box-shadow:8px 0 40px rgba(0,0,0,0.6);
+            }
+            .sidebar.collapsed{transform:translateX(-340px);}
+            .message{max-width:95%;}
+            .quick-btns{gap:4px;}
+            .quick-btn{padding:5px 10px;font-size:0.7rem;}
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>📚 专属错题库</h2>
+            <span style="font-size:0.7rem;color:var(--text3);" id="sidebar-total-count">共0题</span>
+        </div>
+        <div class="sidebar-stats" id="sidebar-stats">
+            <span class="stat-chip">📝 总题数: <b id="stat-total">0</b></span>
+            <span class="stat-chip due" id="stat-due-chip" style="display:none;">⏰ 待复习: <b id="stat-due">0</b></span>
+            <span class="stat-chip mastered" id="stat-mastered-chip" style="display:none;">✅ 已掌握: <b id="stat-mastered">0</b></span>
+        </div>
+        <div class="sidebar-list" id="sidebar-list">
+            <div class="sidebar-empty">📭 错题库为空<br><small>发送题目开始学习吧</small></div>
+        </div>
+        <div class="sidebar-footer">
+            <button onclick="exportErrors()">📥 导出</button>
+            <button onclick="importErrorsPrompt()">📤 导入</button>
+            <button class="danger" onclick="clearAllErrors()">🗑 清空</button>
+        </div>
+    </aside>
+
+    <div class="main">
+        <div class="main-header">
+            <button class="toggle-sidebar-btn" onclick="toggleSidebar()">📋 错题库</button>
+            <div class="logo"><span class="dot"></span>考研数学二 · 1v1 智能辅导</div>
+            <span class="api-status disconnected" id="api-status-badge">⚪ 未配置API Key</span>
+        </div>
+        <div class="chat-area" id="chat-area">
+            <div class="message system-msg">
+                👋 欢迎！我是你的<strong>考研数学二专属1v1辅导智能体</strong>，覆盖<strong>高数+线代</strong>全部考点。<br>
+                请先配置 <strong>DeepSeek API Key</strong> 开始使用（点击下方设置按钮或发送指令）。<br><br>
+                <strong>📌 快捷指令：</strong><br>
+                • 直接发送数学题 → 启动完整拆解教学<br>
+                • 发送「<strong>今日刷题</strong>」→ 推送5道到期错题复习<br>
+                • 发送「<strong>查看错题库</strong>」→ 列出所有错题<br>
+                • 发送「<strong>重讲X号错题</strong>」→ 重新讲解指定题目
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="quick-btns">
+                <button class="quick-btn primary-action" onclick="safeQuickAction('send_question')">📝 发题讲解</button>
+                <button class="quick-btn" onclick="safeQuickAction('daily_review')">📋 今日刷题(5道)</button>
+                <button class="quick-btn" onclick="safeQuickAction('view_errors')">📚 查看错题库</button>
+                <button class="quick-btn" onclick="safeQuickAction('config_api')">⚙️ API设置</button>
+                <button class="quick-btn" onclick="syncNow()">☁️ 同步</button>
+                <button class="quick-btn" onclick="safeQuickAction('speed_up')">⏩ 加快复习</button>
+                <button class="quick-btn" onclick="safeQuickAction('slow_down')">⏳ 放慢复习</button>
+            </div>
+            <div class="input-row">
+                <textarea id="user-input" rows="2" placeholder="在此输入数学题目或指令…&#10;例如：求极限 lim(x→0) (sin x - x) / x³&#10;或输入「今日刷题」启动复习"></textarea>
+                <button class="send-btn" id="send-btn" onclick="safeHandleSend()">发送 ➤</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="importErrors(event)">
+
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <script>
+        (function() {
+            // 全局错误保护
+            window.onerror = function(msg, url, line, col, error) {
+                console.error('错误:', msg, line, col);
+                document.getElementById('chat-area')?.insertAdjacentHTML('beforeend',
+                    `<div class="message system-msg" style="color:#ef4444;">⚠️ 运行错误：${msg}</div>`);
+                return true;
+            };
+
+            // 状态
+            const STATE_KEY = 'math_tutor_state_v2';
+            const API_KEY_STORAGE = 'deepseek_api_key';
+            let appState = {
+                apiKey: '',
+                errorsDB: [],
+                errorIdCounter: 1,
+                conversationHistory: [],
+                currentTeachingErrorId: null,
+                reviewQueue: [],
+                reviewIndex: 0,
+                isReviewing: false,
+                awaitingVariantAnswer: false,
+                ebbinghausMultiplier: 1.0,
+            };
+
+            const EBBINGHAUS_STANDARD = [0,2,4,7,15,30];
+            const MASTERY_STAGE = 6;
+
+            function getEbbinghausDays(stage) {
+                if(stage >= MASTERY_STAGE) return 9999;
+                if(stage < 0 || stage >= EBBINGHAUS_STANDARD.length) return 9999;
+                return Math.round(EBBINGHAUS_STANDARD[stage] * appState.ebbinghausMultiplier);
+            }
+
+            function getStageName(stage) {
+                if(stage >= MASTERY_STAGE) return '永久掌握(仅月测)';
+                const names = ['新学当天','第2天复习','第4天复习','第7天复习','第15天复习','第30天复习'];
+                return names[stage] || `阶段${stage}`;
+            }
+
+            // 本地存储
+            function saveState() {
+                try {
+                    localStorage.setItem(STATE_KEY, JSON.stringify({
+                        errorsDB: appState.errorsDB,
+                        errorIdCounter: appState.errorIdCounter,
+                        ebbinghausMultiplier: appState.ebbinghausMultiplier
+                    }));
+                } catch(e) { console.warn('保存失败', e); }
+            }
+            function loadState() {
+                try {
+                    const raw = localStorage.getItem(STATE_KEY);
+                    if(raw) {
+                        const p = JSON.parse(raw);
+                        appState.errorsDB = p.errorsDB || [];
+                        appState.errorIdCounter = p.errorIdCounter || 1;
+                        appState.ebbinghausMultiplier = p.ebbinghausMultiplier || 1.0;
+                    }
+                } catch(e) { console.warn('加载失败', e); }
+                appState.apiKey = localStorage.getItem(API_KEY_STORAGE) || '';
+            }
+
+            // UI 工具
+            function showToast(msg, type='success') {
+                const container = document.createElement('div');
+                container.id = 'toast-container';
+                container.style.position = 'fixed'; container.style.top = '20px'; container.style.left = '50%';
+                container.style.transform = 'translateX(-50%)'; container.style.zIndex = '9999';
+                container.innerHTML = `<div class="toast ${type}">${msg}</div>`;
+                document.body.appendChild(container);
+                setTimeout(() => { container.style.opacity = '0'; container.style.transition = 'opacity 0.4s';
+                    setTimeout(() => container.remove(), 400); }, 2200);
+            }
+
+            function updateApiStatusBadge() {
+                const badge = document.getElementById('api-status-badge');
+                if(!badge) return;
+                if(appState.apiKey && appState.apiKey.trim().length > 10) {
+                    badge.textContent = '🟢 API已配置';
+                    badge.className = 'api-status connected';
+                } else {
+                    badge.textContent = '⚪ 未配置API Key';
+                    badge.className = 'api-status disconnected';
+                }
+            }
+
+            window.toggleSidebar = function() {
+                document.getElementById('sidebar')?.classList.toggle('collapsed');
+            };
+
+            function escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            function formatDate(dateStr) {
+                if(!dateStr) return '未知';
+                const d = new Date(dateStr);
+                const now = new Date();
+                const diffDays = Math.floor((d - now) / (1000*60*60*24));
+                const m = d.getMonth()+1; const day = d.getDate();
+                if(diffDays < 0) return `${m}/${day} (逾期${Math.abs(diffDays)}天)`;
+                if(diffDays === 0) return `${m}/${day} (今天)`;
+                if(diffDays === 1) return `${m}/${day} (明天)`;
+                return `${m}/${day} (${diffDays}天后)`;
+            }
+
+            function refreshSidebar() {
+                const list = document.getElementById('sidebar-list');
+                const totalSpan = document.getElementById('sidebar-total-count');
+                const statTotal = document.getElementById('stat-total');
+                const statDue = document.getElementById('stat-due');
+                const statDueChip = document.getElementById('stat-due-chip');
+                const statMastered = document.getElementById('stat-mastered');
+                const statMasteredChip = document.getElementById('stat-mastered-chip');
+                if(!list) return;
+                const db = appState.errorsDB;
+                totalSpan.textContent = `共${db.length}题`;
+                statTotal.textContent = db.length;
+                const now = new Date();
+                const dueErrors = db.filter(e => e.masteryStage < MASTERY_STAGE && new Date(e.nextReviewDate) <= now);
+                const masteredErrors = db.filter(e => e.masteryStage >= MASTERY_STAGE);
+                statDueChip.style.display = dueErrors.length ? '' : 'none';
+                statDue.textContent = dueErrors.length;
+                statMasteredChip.style.display = masteredErrors.length ? '' : 'none';
+                statMastered.textContent = masteredErrors.length;
+                if(db.length === 0) {
+                    list.innerHTML = '<div class="sidebar-empty">📭 错题库为空<br><small>发送题目开始学习吧</small></div>';
+                } else {
+                    const sorted = [...db].sort((a,b)=> new Date(a.nextReviewDate) - new Date(b.nextReviewDate));
+                    list.innerHTML = sorted.map(e => {
+                        const stageClass = e.masteryStage >= MASTERY_STAGE ? 'stage-mastered' : (e.masteryStage <=1 ? 'stage-new' : 'stage-review');
+                        const stageName = getStageName(e.masteryStage);
+                        const isDue = e.masteryStage < MASTERY_STAGE && new Date(e.nextReviewDate) <= now;
+                        return `
+                        <div class="error-card" onclick="retEachError(${e.id})">
+                            <div class="ec-header">
+                                <span class="ec-id">#${e.id}</span>
+                                <span class="ec-topic">${escapeHtml(e.topic||'未分类')}</span>
+                            </div>
+                            <div class="ec-question">${escapeHtml(e.questionPreview || e.question.substring(0,100))}</div>
+                            <div class="ec-meta">
+                                <span>📅 ${formatDate(e.learnDate)}</span>
+                                <span>🔁 ${formatDate(e.nextReviewDate)}${isDue?' ⏰':''}</span>
+                                <span class="ec-stage ${stageClass}">${stageName}</span>
+                                <span>✅连对:${e.consecutiveCorrect||0}次</span>
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            // 错题操作
+            function addToErrorDB(question, topic='待归类', chapter='待归类', examWeight='待确认') {
+                const now = new Date();
+                const stage = 0;
+                const nextDate = new Date(now);
+                nextDate.setDate(nextDate.getDate() + getEbbinghausDays(stage));
+                const record = {
+                    id: appState.errorIdCounter++,
+                    question, questionPreview: question.substring(0,150),
+                    topic, chapter, examWeight,
+                    learnDate: now.toISOString(),
+                    masteryStage: stage,
+                    nextReviewDate: nextDate.toISOString(),
+                    reviewHistory: [],
+                    consecutiveCorrect: 0,
+                    lastReviewResult: null,
+                    fullExplanation: ''
+                };
+                appState.errorsDB.push(record);
+                appState.currentTeachingErrorId = record.id;
+                saveState(); refreshSidebar();
+                return record;
+            }
+
+            function updateErrorAfterTeaching(id, explanation, topic, chapter) {
+                const err = appState.errorsDB.find(e=>e.id===id);
+                if(!err) return;
+                err.fullExplanation = explanation || err.fullExplanation;
+                if(topic) err.topic = topic;
+                if(chapter) err.chapter = chapter;
+                saveState(); refreshSidebar();
+            }
+
+            function updateErrorReviewResult(errorId, result) {
+                const err = appState.errorsDB.find(e=>e.id===errorId);
+                if(!err) return;
+                const now = new Date();
+                err.reviewHistory.push({ date: now.toISOString(), result });
+                err.lastReviewResult = result;
+                if(result === 'perfect') {
+                    err.consecutiveCorrect = (err.consecutiveCorrect||0)+1;
+                    if(err.consecutiveCorrect >= 2) {
+                        err.masteryStage = MASTERY_STAGE;
+                        err.nextReviewDate = new Date(now.getTime() + 30*24*60*60*1000).toISOString();
+                        showToast(`🎉 错题#${err.id} 连续两轮全对，判定永久掌握！`,'success');
+                    } else {
+                        const newStage = Math.min(err.masteryStage+1, EBBINGHAUS_STANDARD.length-1);
+                        err.masteryStage = newStage;
+                        const nd = new Date(now); nd.setDate(nd.getDate() + getEbbinghausDays(newStage));
+                        err.nextReviewDate = nd.toISOString();
+                    }
+                } else if(result === 'calc_error') {
+                    err.consecutiveCorrect = 0;
+                    const nd = new Date(now); nd.setDate(nd.getDate()+3);
+                    err.nextReviewDate = nd.toISOString();
+                } else {
+                    err.consecutiveCorrect = 0;
+                    err.masteryStage = 0;
+                    const nd = new Date(now); nd.setDate(nd.getDate()+1);
+                    err.nextReviewDate = nd.toISOString();
+                }
+                saveState(); refreshSidebar();
+            }
+
+            function getDueReviewErrors(limit=5) {
+                const now = new Date();
+                const due = appState.errorsDB.filter(e => e.masteryStage < MASTERY_STAGE && new Date(e.nextReviewDate) <= now);
+                due.sort((a,b)=> new Date(a.nextReviewDate) - new Date(b.nextReviewDate));
+                return due.slice(0, limit);
+            }
+
+            window.retEachError = function(id) {
+                const err = appState.errorsDB.find(e=>e.id===id);
+                if(!err) { showToast('未找到该错题','warning'); return; }
+                document.getElementById('user-input').value = `请重新完整讲解错题#${id}：\n\n${err.question}`;
+                safeHandleSend();
+            };
+
+            window.clearAllErrors = function() {
+                if(confirm('⚠️ 确定清空全部错题库吗？建议先导出备份。')) {
+                    appState.errorsDB = []; appState.errorIdCounter = 1;
+                    appState.currentTeachingErrorId = null; appState.reviewQueue = [];
+                    appState.reviewIndex = 0; appState.isReviewing = false;
+                    appState.awaitingVariantAnswer = false;
+                    saveState(); refreshSidebar();
+                    showToast('错题库已清空','warning');
+                }
+            };
+            window.exportErrors = function() {
+                const data = JSON.stringify(appState.errorsDB, null, 2);
+                const blob = new Blob([data], {type:'application/json'});
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `考研数学错题库_${new Date().toISOString().slice(0,10)}.json`;
+                a.click(); URL.revokeObjectURL(a.href);
+                showToast('已导出','success');
+            };
+            window.importErrorsPrompt = function() {
+                document.getElementById('import-file-input').click();
+            };
+            window.importErrors = function(event) {
+                const file = event.target.files[0];
+                if(!file) return;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if(!Array.isArray(data)) throw new Error('格式错误');
+                        const merged = [...appState.errorsDB, ...data];
+                        const idMap = {}; const deduped = [];
+                        for(const err of merged) { if(!idMap[err.id]) { idMap[err.id]=true; deduped.push(err); } }
+                        appState.errorsDB = deduped;
+                        appState.errorIdCounter = Math.max(...deduped.map(e=>e.id),0)+1;
+                        saveState(); refreshSidebar();
+                        showToast(`成功导入${data.length}条记录`,'success');
+                    } catch(ex) { showToast('导入失败：文件格式不正确','error'); }
+                };
+                reader.readAsText(file);
+                event.target.value = '';
+            };
+
+            // DeepSeek API
+            async function callDeepSeek(userMessage) {
+                if(!appState.apiKey || appState.apiKey.trim().length < 10) {
+                    throw new Error('请先配置API Key（点击⚙️ API设置）');
+                }
+                const systemPrompt = `你是考研数学二的专属1v1辅导智能体，覆盖高数、线代全部考点。你的核心职责是教学和辅导。
+
+        【教学规则-收到题目时严格按以下步骤】
+        1. 📌 标注考点：明确本题考研考点、所属章节、历年考分占比
+        2. 📖 前置知识：补充本题需要用到的公式、定理、二级结论，补齐知识漏洞
+        3. 🧠 三层讲解：
+           - 第一层：通用题型框架（这类题的通用解法）
+           - 第二层：本题解题突破口（本题特有的关键点）
+           - 第三层：考场易错陷阱（常见错误和避坑要点）
+        4. ✍️ 完整分步演算：每一步标注推导依据，贴合考研阅卷标准步骤，禁止跳步
+        5. 🔄 方法对比：提供1-2种解题方法，明确说明考场最优解法
+        6. 📝 总结：给出本题通用解题模板与避坑要点
+        7. 🎯 出变式题：出一道同考点变式小题检验掌握程度，明确告知“请作答，我会为你批改”
+
+        【关键要求】
+        - 禁止跳步！任何一步都必须详细说明
+        - 当学生说“不懂”、“没看懂”、“卡住了”，立刻换通俗思路重新拆解
+        - 所有回复围绕考研数学，不进行无关闲聊
+        - 公式使用LaTeX格式（$...$行内，$$...$$行间）
+        - 回复末尾务必出一道变式题并等待学生作答
+
+        【复习批改规则】
+        - 学生回答变式题后，严格批改：
+          • 全对无失误 → 表扬并指出可优化之处
+          • 思路正确仅计算出错 → 指出计算错误点，鼓励思路
+          • 完全错误 → 重新讲解关键步骤，不批评
+        - 批改时标注扣分点，模拟考研阅卷标准`;
+
+                const messages = [
+                    {role:'system', content: systemPrompt},
+                    ...appState.conversationHistory,
+                    {role:'user', content: userMessage}
+                ];
+                const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                    method:'POST',
+                    headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${appState.apiKey}` },
+                    body: JSON.stringify({ model:'deepseek-chat', messages, temperature:0.6, max_tokens:4096 })
+                });
+                if(!res.ok) {
+                    const errData = await res.json().catch(()=>({}));
+                    throw new Error(`API错误：${errData.error?.message || res.status}`);
+                }
+                const data = await res.json();
+                const reply = data.choices[0].message.content;
+                appState.conversationHistory.push({role:'user', content: userMessage});
+                appState.conversationHistory.push({role:'assistant', content: reply});
+                if(appState.conversationHistory.length > 40) appState.conversationHistory = appState.conversationHistory.slice(-40);
+                return reply;
+            }
+
+            // 聊天渲染
+            function addMessage(role, content) {
+                const chat = document.getElementById('chat-area');
+                const div = document.createElement('div');
+                div.className = `message ${role}`;
+                if(role === 'user') div.innerHTML = `<div class="label">🧑‍🎓 你</div><div>${escapeHtml(content)}</div>`;
+                else if(role === 'assistant') {
+                    div.innerHTML = `<div class="label">🤖 数学导师</div><div class="msg-content">${formatMarkdown(content)}</div>`;
+                } else div.innerHTML = content;
+                chat.appendChild(div);
+                chat.scrollTop = chat.scrollHeight;
+                if(role === 'assistant') {
+                    try {
+                        renderMathInElement(div.querySelector('.msg-content'), {
+                            delimiters: [
+                                {left:'$$',right:'$$',display:true},
+                                {left:'$',right:'$',display:false}
+                            ],
+                            throwOnError: false
+                        });
+                    } catch(e) { console.warn('KaTeX渲染失败', e); }
+                }
+                return div;
+            }
+            function addSystemMsg(content) {
+                const chat = document.getElementById('chat-area');
+                const div = document.createElement('div');
+                div.className = 'message system-msg';
+                div.innerHTML = content;
+                chat.appendChild(div);
+                chat.scrollTop = chat.scrollHeight;
+            }
+            function addTypingIndicator() {
+                const chat = document.getElementById('chat-area');
+                const ind = document.createElement('div');
+                ind.className = 'message assistant';
+                ind.id = 'typing-indicator';
+                ind.innerHTML = '<div class="label">🤖 数学导师</div><div class="typing-indicator"><span></span><span></span><span></span></div>';
+                chat.appendChild(ind);
+                chat.scrollTop = chat.scrollHeight;
+                return ind;
+            }
+            function removeTypingIndicator() {
+                const ind = document.getElementById('typing-indicator');
+                if(ind) ind.remove();
+            }
+            function formatMarkdown(text) {
+                return text
+                    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+                    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+                    .replace(/`([^`]+)`/g,'<code>$1</code>')
+                    .replace(/\n/g,'<br>');
+            }
+
+            // 指令识别
+            function isCommand(input) {
+                const lower = input.trim().toLowerCase();
+                return /今日刷题|复习5道题|复习五道题|查看错题库|重讲|重新讲解|加快复习|放慢复习|清空错题库|api设置|设置api|配置api|导出|导入/.test(lower);
+            }
+            function identifyCommandType(input) {
+                const lower = input.trim().toLowerCase();
+                if(/今日刷题|复习5道题|复习五道题/.test(lower)) return 'daily_review';
+                if(/查看错题库|查看错题|错题库/.test(lower)) return 'view_errors';
+                if(/重讲|重新讲解/.test(lower)) return 'ret each';
+                if(/加快复习|加快/.test(lower)) return 'speed_up';
+                if(/放慢复习|放慢/.test(lower)) return 'slow_down';
+                if(/清空错题库|清空/.test(lower)) return 'clear_all';
+                if(/api设置|设置api|配置api|apikey/.test(lower)) return 'config_api';
+                if(/导出/.test(lower)) return 'export';
+                if(/导入/.test(lower)) return 'import';
+                return null;
+            }
+
+            // 核心处理
+            async function handleSendInternal() {
+                const inputEl = document.getElementById('user-input');
+                const sendBtn = document.getElementById('send-btn');
+                const input = inputEl.value.trim();
+                if(!input) return;
+                inputEl.disabled = true;
+                sendBtn.disabled = true;
+                try {
+                    const cmd = identifyCommandType(input);
+                    if(cmd) {
+                        await executeCommand(cmd, input);
+                    } else {
+                        if(!appState.apiKey || appState.apiKey.trim().length < 10) {
+                            addSystemMsg('⚠️ 请先配置DeepSeek API Key（点击⚙️ API设置）');
+                            showToast('请先配置API Key','warning');
+                            return;
+                        }
+                        if(appState.isReviewing && appState.currentTeachingErrorId) {
+                            await handleReviewAnswer(input);
+                            return;
+                        }
+                        if(appState.awaitingVariantAnswer && appState.currentTeachingErrorId) {
+                            await handleVariantAnswer(input);
+                            return;
+                        }
+                        await handleMathQuestion(input);
+                    }
+                } catch(err) {
+                    removeTypingIndicator();
+                    addSystemMsg(`❌ 错误：${escapeHtml(err.message)}`);
+                } finally {
+                    inputEl.value = '';
+                    inputEl.disabled = false;
+                    sendBtn.disabled = false;
+                    inputEl.focus();
+                    refreshSidebar();
+                }
+            }
+
+            async function executeCommand(cmd, input) {
+                switch(cmd) {
+                    case 'daily_review': await startDailyReview(); break;
+                    case 'view_errors': viewAllErrors(); break;
+                    case 'ret each': await retEachCommand(input); break;
+                    case 'speed_up': adjustFrequency('speed_up'); break;
+                    case 'slow_down': adjustFrequency('slow_down'); break;
+                    case 'clear_all': clearAllErrors(); addSystemMsg('🗑 错题库已清空'); break;
+                    case 'config_api': await configureApiKey(); break;
+                    case 'export': exportErrors(); addSystemMsg('📥 已导出'); break;
+                    case 'import': importErrorsPrompt(); addSystemMsg('📤 请选择文件'); break;
+                }
+            }
+
+            async function handleMathQuestion(question) {
+                addMessage('user', question);
+                const record = addToErrorDB(question);
+                addTypingIndicator();
+                try {
+                    const reply = await callDeepSeek(question);
+                    removeTypingIndicator();
+                    addMessage('assistant', reply);
+                    const topicMatch = reply.match(/考点[：:]\s*(.+?)(?:\n|$|，|。)/);
+                    const chapterMatch = reply.match(/章节[：:]\s*(.+?)(?:\n|$|，|。)/);
+                    updateErrorAfterTeaching(record.id, reply,
+                        topicMatch?topicMatch[1].trim():'待归类',
+                        chapterMatch?chapterMatch[1].trim():'待归类');
+                    if(/变式|请作答|检验/.test(reply)) {
+                        appState.awaitingVariantAnswer = true;
+                        appState.currentTeachingErrorId = record.id;
+                        addSystemMsg('📝 导师已出一道变式题，请作答后发送。');
+                    }
+                    showToast(`✅ 已存入错题库 #${record.id}`,'success');
+                } catch(err) {
+                    removeTypingIndicator();
+                    appState.errorsDB = appState.errorsDB.filter(e=>e.id!==record.id);
+                    throw err;
+                }
+            }
+
+            async function startDailyReview() {
+                appState.isReviewing = true;
+                appState.awaitingVariantAnswer = false;
+                const due = getDueReviewErrors(5);
+                if(due.length === 0) {
+                    addSystemMsg('🎉 当前没有到期错题，继续保持！');
+                    appState.isReviewing = false;
+                    return;
+                }
+                appState.reviewQueue = due.map(e=>e.id);
+                appState.reviewIndex = 0;
+                addSystemMsg(`📋 今日复习推送（${due.length}道题）<br>请依次作答。`);
+                await pushNextReviewQuestion();
+            }
+
+            async function pushNextReviewQuestion() {
+                if(appState.reviewIndex >= appState.reviewQueue.length) {
+                    appState.isReviewing = false;
+                    const mastered = appState.errorsDB.filter(e=>e.masteryStage>=MASTERY_STAGE).length;
+                    addSystemMsg(`✅ 今日复习完成！已永久掌握 ${mastered} 题。`);
+                    return;
+                }
+                const id = appState.reviewQueue[appState.reviewIndex];
+                const err = appState.errorsDB.find(e=>e.id===id);
+                if(!err) { appState.reviewIndex++; await pushNextReviewQuestion(); return; }
+                addSystemMsg(`📌 复习题 ${appState.reviewIndex+1}/${appState.reviewQueue.length} — 错题 #${err.id}<br>${escapeHtml(err.question)}`);
+                appState.currentTeachingErrorId = id;
+            }
+
+            async function handleReviewAnswer(answer) {
+                const err = appState.errorsDB.find(e=>e.id===appState.currentTeachingErrorId);
+                if(!err) return;
+                addMessage('user', answer);
+                addTypingIndicator();
+                const prompt = `【复习批改】原题：${err.question}\n学生作答：${answer}\n请批改并评级：全对/计算错/需重学。`;
+                try {
+                    const reply = await callDeepSeek(prompt);
+                    removeTypingIndicator();
+                    addMessage('assistant', reply);
+                    let result = 'no_clue';
+                    if(/全对|✅.*全对|完全正确/.test(reply)) result = 'perfect';
+                    else if(/思路正确|计算错|⚠️/.test(reply) && !/需重学|❌/.test(reply)) result = 'calc_error';
+                    updateErrorReviewResult(appState.currentTeachingErrorId, result);
+                    appState.reviewIndex++;
+                    await pushNextReviewQuestion();
+                } catch(e) {
+                    removeTypingIndicator();
+                    throw e;
+                }
+            }
+
+            async function handleVariantAnswer(answer) {
+                addMessage('user', answer);
+                addTypingIndicator();
+                try {
+                    const reply = await callDeepSeek(answer);
+                    removeTypingIndicator();
+                    addMessage('assistant', reply);
+                    let result = 'no_clue';
+                    if(/全对|✅.*全对/.test(reply)) result = 'perfect';
+                    else if(/思路正确|计算错/.test(reply) && !/需重学|❌/.test(reply)) result = 'calc_error';
+                    updateErrorReviewResult(appState.currentTeachingErrorId, result);
+                    appState.awaitingVariantAnswer = false;
+                } catch(e) {
+                    removeTypingIndicator();
+                    throw e;
+                }
+            }
+
+            function retEachCommand(input) {
+                const match = input.match(/(\d+)/);
+                if(!match) { addSystemMsg('请指定错题编号，例如：重讲3号错题'); return; }
+                const id = parseInt(match[1]);
+                retEachError(id);
+            }
+
+            function viewAllErrors() {
+                const db = appState.errorsDB;
+                if(db.length===0) { addSystemMsg('📭 错题库为空'); return; }
+                let html = `<strong>📚 错题库（${db.length}题）</strong><br>`;
+                const sorted = [...db].sort((a,b)=> new Date(a.nextReviewDate)-new Date(b.nextReviewDate));
+                for(const e of sorted) {
+                    html += `<strong>#${e.id}</strong> [${escapeHtml(e.topic)}] ${getStageName(e.masteryStage)} | 下次：${formatDate(e.nextReviewDate)}<br>`;
+                }
+                addSystemMsg(html);
+            }
+
+            function adjustFrequency(dir) {
+                if(dir==='speed_up') appState.ebbinghausMultiplier = Math.max(0.3, appState.ebbinghausMultiplier-0.2);
+                else appState.ebbinghausMultiplier = Math.min(3.0, appState.ebbinghausMultiplier+0.2);
+                recalcDates();
+                saveState(); refreshSidebar();
+                showToast(`复习频率已调整为 ${appState.ebbinghausMultiplier.toFixed(1)}x`,'success');
+            }
+            function recalcDates() {
+                for(const err of appState.errorsDB) {
+                    if(err.masteryStage >= MASTERY_STAGE) {
+                        err.nextReviewDate = new Date(Date.now()+30*24*60*60*1000).toISOString();
+                    } else {
+                        const days = getEbbinghausDays(err.masteryStage);
+                        const base = new Date(err.learnDate);
+                        const next = new Date(base); next.setDate(next.getDate()+days);
+                        if(next <= new Date()) next.setDate(new Date().getDate()+1);
+                        err.nextReviewDate = next.toISOString();
+                    }
+                }
+            }
+
+            async function configureApiKey() {
+                const cur = appState.apiKey || '';
+                const masked = cur.length>10 ? cur.substring(0,8)+'...'+cur.substring(cur.length-4) : (cur||'未配置');
+                const newKey = prompt(`配置API Key\n当前：${masked}\n获取：https://platform.deepseek.com/`);
+                if(newKey !== null) {
+                    const k = newKey.trim();
+                    if(k && k.length>10) {
+                        appState.apiKey = k;
+                        localStorage.setItem(API_KEY_STORAGE, k);
+                        updateApiStatusBadge();
+                        appState.conversationHistory = [];
+                        showToast('✅ API Key已保存','success');
+                    } else if(k === '') {
+                        appState.apiKey = '';
+                        localStorage.removeItem(API_KEY_STORAGE);
+                        updateApiStatusBadge();
+                        showToast('API Key已清除','warning');
+                    } else {
+                        showToast('格式不正确','error');
+                    }
+                }
+            }
+
+            // 安全包装（给onclick用）
+            window.safeQuickAction = function(action) {
+                try {
+                    const inputEl = document.getElementById('user-input');
+                    switch(action) {
+                        case 'send_question': inputEl.focus(); showToast('请在输入框输入题目'); break;
+                        case 'daily_review': inputEl.value = '今日刷题'; safeHandleSend(); break;
+                        case 'view_errors': inputEl.value = '查看错题库'; safeHandleSend(); break;
+                        case 'config_api': configureApiKey(); break;
+                        case 'speed_up': adjustFrequency('speed_up'); break;
+                        case 'slow_down': adjustFrequency('slow_down'); break;
+                    }
+                } catch(e) { console.error('快捷操作失败', e); showToast('操作失败','error'); }
+            };
+// ==================== 云同步（Cloudflare Workers） ====================
+const SYNC_URL = 'https://你的worker名.你的用户名.workers.dev';  // 👈 先别改，等创建 Worker 后再改
+let SYNC_USER_ID = '';
+
+function ensureUserId() {
+  if (!SYNC_USER_ID) {
+    SYNC_USER_ID = localStorage.getItem('sync_user_id');
+    if (!SYNC_USER_ID) {
+      SYNC_USER_ID = prompt('请输入你的同步ID（用于跨设备同步，请牢记）：');
+      if (SYNC_USER_ID) {
+        localStorage.setItem('sync_user_id', SYNC_USER_ID);
+      } else {
+        SYNC_USER_ID = 'user_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('sync_user_id', SYNC_USER_ID);
+        alert('已自动生成同步ID：' + SYNC_USER_ID + '。其他设备请用相同ID。');
+      }
+    }
+  }
+  return SYNC_USER_ID;
+}
+
+async function uploadToCloud() {
+  const userId = ensureUserId();
+  if (!userId || !SYNC_URL.includes('workers.dev')) return;
+  try {
+    const res = await fetch(`${SYNC_URL}/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, errorsDB: appState.errorsDB }),
+    });
+    const data = await res.json();
+    if (data.success) showToast('☁️ 已同步到云端', 'success');
+    else throw new Error(data.error);
+  } catch (e) { console.warn('同步失败', e); }
+}
+
+async function downloadFromCloud() {
+  const userId = ensureUserId();
+  if (!userId || !SYNC_URL.includes('workers.dev')) return;
+  try {
+    const res = await fetch(`${SYNC_URL}/download?userId=${userId}`);
+    const cloudDB = await res.json();
+    if (Array.isArray(cloudDB) && cloudDB.length > 0) {
+      appState.errorsDB = cloudDB;
+      saveState();
+      refreshSidebar();
+      showToast('☁️ 已从云端加载错题库', 'success');
+    }
+  } catch (e) { console.warn('下载失败', e); }
+}
+
+window.syncNow = async function () {
+  await uploadToCloud();
+  await downloadFromCloud();
+};
+
+// 页面加载时自动下载云端数据
+window.addEventListener('load', () => {
+  if (navigator.onLine) downloadFromCloud().catch(console.error);
+});
+            window.safeHandleSend = function() {
+                try {
+                    handleSendInternal();
+                } catch(e) { console.error('发送失败', e); showToast('发送失败','error'); }
+            };
+
+            // 初始化
+            loadState();
+            updateApiStatusBadge();
+            refreshSidebar();
+            const due = getDueReviewErrors(99);
+            if(due.length > 0 && appState.apiKey) {
+                setTimeout(() => addSystemMsg(`⏰ 您有 ${due.length} 道错题到期，发送「今日刷题」开始复习。`), 500);
+            }
+            document.getElementById('user-input').addEventListener('keydown', function(e) {
+                if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); safeHandleSend(); }
+            });
+            if(!appState.apiKey) {
+                setTimeout(() => addSystemMsg('💡 提示：请先配置API Key（点击⚙️ API设置）'), 300);
+            }
+            console.log('✅ 考研数学智能辅导系统就绪');
+        })();
+    </script>
+</body>
+</html>
